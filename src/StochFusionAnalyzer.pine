@@ -1,0 +1,65 @@
+//@version=5
+// ~~ Input variables {
+//Inputs
+indicator(title="StochFusionAnalyzer", shorttitle="StochFusionAnalyzer", format=format.price, precision=2)
+
+isAlertcrossBorder = input.bool(defval = true,title = 'alert on/off',tooltip = 'can you alert cross border')
+highBorderValue =  input.int(80, title="higher border", minval=1)
+lowBorderValue =  input.int(20, title="lower border", minval=1)
+
+shortStochTitle = "short term stock values"
+periodK = input.int(14, title="%K Length", minval=1,group=shortStochTitle)
+smoothK = input.int(14, title="%K Smoothing", minval=1,group=shortStochTitle)
+periodD = input.int(14, title="%D Smoothing", minval=1,group=shortStochTitle)
+shortK = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+shortD = ta.sma(shortK, periodD)
+shortGoldenCross = ta.crossover(shortK,shortD)
+shortDeadCross = ta.crossover(shortD,shortK)
+
+longStochTitle = "long term stock values"
+longPeriodK = input.int(14, title="%K Length", minval=1,group=longStochTitle)
+longSmoothK = input.int(14, title="%K Smoothing", minval=1,group=longStochTitle)
+longPeriodD = input.int(14, title="%D Smoothing", minval=1,group=longStochTitle)
+longK = ta.sma(ta.stoch(close, high, low, longPeriodK*6), longSmoothK*6)
+longD = ta.sma(longK, longPeriodD*6)
+longGoldenCross = ta.crossover(longK,longD)
+longDeadCross = ta.crossover(longD,longK)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+
+//Plot
+//background
+h0 = hline(highBorderValue, "Upper Band", color=#787B86)
+hline(50, "Middle Band", color=color.new(#787B86, 50))
+h1 = hline(lowBorderValue, "Lower Band", color=#787B86)
+fill(h0, h1, color=color.rgb(33, 150, 243, 90), title="Background")
+
+//ingicator
+plot(shortK, title="%K", color=#2962FF)
+plot(shortD, title="%D", color=#FF6D00)
+
+plot(longK, title="%longK", color=#6616bb)
+plot(longD, title="%longD", color=#cfaac6)
+
+
+// ~~ Alert {
+indicatorcross(src1,src2) =>
+    over  = ta.crossover(src1,src2)
+    under = ta.crossunder(src1,src2)
+    [over,under]
+srccross(indicator) =>
+    over  = ta.crossover(highBorderValue,indicator)
+    under = ta.crossunder(lowBorderValue,indicator)
+    [over,under]
+[short_stoch_golden_cross,short_stoch_dead_cross] = indicatorcross(shortK,shortD)
+[over_short_stoch,under_short_stoch] = srccross(shortD)
+[over_long_stoch,under_long_stoch] = indicatorcross(longK,longD)
+
+
+alertcondition(short_stoch_golden_cross, title="S_Stoch GoldenCross", message="PRICE:{{close}} Short Term Stoch GoldenCross TIME:{{timenow}}"),alertcondition(short_stoch_dead_cross, title="S_Stoch DeadCross", message="PRICE:{{close}}　S_Stoch DeadCross TIME:{{timenow}}")
+alertcondition(over_long_stoch, title="L_Stoch GoldenCross", message="PRICE:{{close}} Long Term Stoch GoldenCross TIME:{{timenow}}"),alertcondition(under_long_stoch, title="L_Stoch DeadCross", message="PRICE:{{close}} L_Stoch DeadCross TIME:{{timenow}}")
+if (isAlertcrossBorder and over_short_stoch)
+    alert(message = 'PRICE:{{close}} S_Stoch cross higher border  TIME:{{timenow}}')
+if (isAlertcrossBorder and under_short_stoch)
+    alert(message = 'PRICE:{{close}} S_Stoch cross lower border  TIME:{{timenow}}'+timeframe.period)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
